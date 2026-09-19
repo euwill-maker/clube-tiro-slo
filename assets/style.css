@@ -730,8 +730,7 @@ html.quiz-lock,html.quiz-lock body{overflow:hidden}
 .quiz::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 
 /* topo: voltar · progresso · fechar */
-.quiz-top{position:relative;flex:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:16px 12px 4px 8px}
-.quiz-handle{position:absolute;left:50%;top:6px;width:42px;height:4px;border-radius:2px;background:#3a3a3a;transform:translateX(-50%)}
+.quiz-top{position:relative;flex:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 12px 4px 8px}
 .quiz-back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 10px 0 4px;border:0;border-radius:12px;background:transparent;color:#e6e6e6;
   font:700 14.5px/1 var(--f-body);cursor:pointer;-webkit-tap-highlight-color:transparent}
 .quiz-back .i{width:20px;height:20px;transform:scaleX(-1);color:var(--yellow)}
@@ -746,16 +745,24 @@ html.quiz-lock,html.quiz-lock body{overflow:hidden}
 
 /* corpo: rola por dentro (teclado aberto / tela baixa) */
 .quiz-body{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  display:flex;flex-direction:column;
   padding:14px 20px calc(22px + env(safe-area-inset-bottom))}
-.quiz-kick{display:inline-flex;align-items:center;gap:8px;max-width:100%;margin:0 0 10px;padding:6px 12px 6px 8px;border-radius:15px;background:#1a1a1a;box-shadow:inset 0 0 0 1px #2e2e2e;
+/* o passo ocupa o corpo todo; as opções descem para perto do polegar (ver altura estável no celular) */
+.quiz-step{flex:1 0 auto;display:flex;flex-direction:column}
+.quiz-step>.quiz-opts{margin-top:auto;padding-top:18px}
+.quiz-kick{display:inline-flex;align-self:flex-start;align-items:center;gap:8px;max-width:100%;margin:0 0 10px;padding:6px 12px 6px 8px;border-radius:15px;background:#1a1a1a;box-shadow:inset 0 0 0 1px #2e2e2e;
   color:#e6e6e6;font:700 11.5px/1.2 var(--f-body);font-stretch:112%;letter-spacing:.1em;text-transform:uppercase}
 .quiz-kick::before{content:"";flex:none;width:12px;height:12px;border-radius:50%;border:2px solid var(--yellow);background:radial-gradient(circle,var(--yellow) 0 1.6px,transparent 2.2px)}
+/* aviso gentil sobre a resposta anterior (18–24 que quer arma própria) */
+.quiz-aviso{display:flex;align-items:flex-start;gap:10px;margin:0 0 14px;padding:10px 12px;border-radius:14px;background:#1d1c12;box-shadow:inset 0 0 0 1px rgba(255,224,0,.3);
+  color:#f2f2f2;font:600 14.5px/1.4 var(--f-body)}
+.quiz-aviso .i{flex:none;width:18px;height:18px;margin-top:1px;color:var(--yellow)}
 .quiz-q{font:400 28px/1.02 var(--f-display);text-transform:uppercase;letter-spacing:-.01em;color:#fff;text-wrap:balance}
 .quiz-q:focus{outline:none}
 .quiz-sub{margin-top:8px;font-size:15.5px;line-height:1.45;color:var(--muted)}
 
 /* opções: grandes, largura toda, fáceis para o polegar */
-.quiz-opts{display:grid;gap:10px;margin-top:18px}
+.quiz-opts{display:grid;gap:10px}
 .quiz-opt{display:flex;align-items:center;gap:14px;width:100%;min-height:62px;margin:0;padding:10px 14px 10px 12px;border:1.5px solid #2c2c2c;border-radius:18px;background:#1a1a1a;
   color:#fff;font:800 17px/1.2 var(--f-body);font-stretch:104%;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;
   transition:border-color .15s ease,background-color .15s ease,transform .15s ease}
@@ -802,9 +809,11 @@ html.quiz-lock,html.quiz-lock body{overflow:hidden}
 .qs-badge{display:grid;place-items:center;width:92px;height:92px;border-radius:50%;font:400 26px/1 var(--f-display);color:var(--black);
   background:radial-gradient(circle,var(--yellow) 0 26px,transparent 26.5px 32px,#5a5a5a 32.5px 34px,transparent 34.5px 40px,#3c3c3c 40.5px 42px,transparent 42.5px)}
 .quiz.is-stop .quiz-prog{visibility:hidden}
+/* trava contra toque duplo (quiz.js): logo depois de trocar de tela, o passo não recebe toques
+   (o toque cai no .quiz-body, que o JS ignora — não é lido como "tocar fora") */
+.quiz.is-guard .quiz-step{pointer-events:none}
 
 /* teclado aberto (ou tela bem baixa): etapa final enxuta, campo e Enviar sempre à vista */
-.quiz.is-kb .quiz-handle{display:none}
 .quiz.is-kb .quiz-top{padding-top:8px}
 .quiz.is-kb .quiz-body{padding-top:6px;padding-bottom:14px}
 .quiz.is-kb .quiz-final .quiz-sub,.quiz.is-kb .quiz-final .quiz-chips,.quiz.is-kb .quiz-final .quiz-note{display:none}
@@ -813,12 +822,11 @@ html.quiz-lock,html.quiz-lock body{overflow:hidden}
 .quiz.is-kb .quiz-field input{min-height:50px}
 .quiz.is-kb .quiz-enviar{margin-top:14px;min-height:54px}
 @media (max-height:520px){
-  .quiz-handle{display:none}
   .quiz-top{padding-top:8px}
   .quiz-body{padding-top:6px;padding-bottom:calc(14px + env(safe-area-inset-bottom))}
   .quiz-q{font-size:23px}
   .quiz-sub{font-size:14.5px}
-  .quiz-opts{margin-top:12px;gap:8px}
+  .quiz-step>.quiz-opts{padding-top:12px;gap:8px}
   .quiz-opt{min-height:56px}
   .quiz-final .quiz-sub,.quiz-final .quiz-chips,.quiz-final .quiz-note{display:none}
   .quiz-final .quiz-q{font-size:22px}
@@ -826,6 +834,13 @@ html.quiz-lock,html.quiz-lock body{overflow:hidden}
   .quiz-field input{min-height:50px}
   .quiz-enviar{margin-top:14px;min-height:54px}
   .qs-badge{width:72px;height:72px;font-size:21px;background:radial-gradient(circle,var(--yellow) 0 21px,transparent 21.5px 26px,#5a5a5a 26.5px 28px,transparent 28.5px 33px,#3c3c3c 33.5px 35px,transparent 35.5px)}
+}
+/* celular: altura estável entre as perguntas — a borda de cima do painel não pula a cada passo
+   (as perguntas têm 2 a 4 opções). Tela baixa ou teclado aberto: volta à altura do conteúdo. */
+@media (max-width:639px) and (min-height:521px){
+  .quiz{min-height:min(456px,calc(100vh - 16px));min-height:min(456px,calc(100dvh - 16px))}
+  .quiz.has-vv{min-height:min(456px,calc(var(--vvh) - 16px))}
+  .quiz.is-kb{min-height:0}
 }
 @media (max-width:379px){
   .quiz-body{padding-left:16px;padding-right:16px}
@@ -839,7 +854,6 @@ html.quiz-lock,html.quiz-lock body{overflow:hidden}
   .quiz{width:min(520px,calc(100% - 48px));margin:auto;max-height:min(760px,calc(100vh - 48px));max-height:min(760px,calc(100dvh - 48px));border-radius:28px;
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 30px 80px rgba(0,0,0,.7)}
   .quiz.has-vv{max-height:min(760px,calc(var(--vvh) - 48px))}
-  .quiz-handle{display:none}
   .quiz-top{padding:18px 18px 4px 12px}
   .quiz-body{padding:14px 32px 30px}
   .quiz-q{font-size:32px}
