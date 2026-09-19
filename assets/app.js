@@ -1,6 +1,6 @@
 // ==== CONFIG — tudo que muda no site fica aqui ====
 window.CONFIG = {
-  whatsapp: '5549999077322',   // TROCAR pelo número do clube quando o Willian passar
+  whatsapp: '5549999037322',   // TROCAR pelo número do clube quando o Willian passar
   instagram: 'https://www.instagram.com/clubedetiroslo/',
   mapa: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Clube de Tiro São Lourenço, Estrada Bessegatto, São Lourenço do Oeste - SC'),
   metaPixel: '',               // ID do Pixel da Meta (só números) — vazio = desligado
@@ -34,7 +34,7 @@ window.CONFIG = {
     return 'https://wa.me/' + C.whatsapp + '?text=' + encodeURIComponent(text);
   }
 
-  // 5549999077322 → (49) 99907-7322 (número exibido na página sai do CONFIG)
+  // 5549999037322 → (49) 99903-7322 (número exibido na página sai do CONFIG)
   function waDisplay(num) {
     var n = String(num).replace(/\D/g, '').replace(/^55/, '');
     return '(' + n.slice(0, 2) + ') ' + n.slice(2, n.length - 4) + '-' + n.slice(-4);
