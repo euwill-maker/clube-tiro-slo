@@ -6,6 +6,7 @@ window.CONFIG = {
   metaPixel: '',               // ID do Pixel da Meta (só números) — vazio = desligado
   ga4: '',                     // ID do GA4 (G-XXXXXXX) — vazio = desligado
   preview: true,               // true = mostra selos "a confirmar" (desligar na versão final)
+  // mensagens = reserva: só saem se o questionário (quiz.js) não abrir. Normalmente a mensagem é montada pelo questionário.
   mensagens: {
     topo: 'Olá! Quero ser CAC.',
     combo: 'Olá! Quero o Combo CAC Completo.',
@@ -39,12 +40,6 @@ window.CONFIG = {
     return '(' + n.slice(0, 2) + ') ' + n.slice(2, n.length - 4) + '-' + n.slice(-4);
   }
 
-  function track(label) {
-    window.__events.push(label);
-    if (window.fbq) window.fbq('track', 'Lead', { content_name: label });
-    if (window.gtag) window.gtag('event', 'generate_lead', { event_label: label });
-  }
-
   function loadPixel(id) {
     !function (f, b, e, v, n, t, s) { if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); }; if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = []; t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s); }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
     window.fbq('init', id);
@@ -71,9 +66,14 @@ window.CONFIG = {
   document.querySelectorAll('[data-mapa]').forEach(function (a) { a.href = C.mapa; a.target = '_blank'; a.rel = 'noopener'; });
   document.querySelectorAll('[data-wa-numero]').forEach(function (el) { el.textContent = waDisplay(C.whatsapp); });
 
+  // Toque em qualquer botão de WhatsApp abre o questionário de qualificação (quiz.js) em vez de ir direto.
+  // O href wa.me continua no botão como reserva: se o questionário não abrir (sem JS / navegador antigo), o link segue normal.
+  // O Lead (Pixel/GA4) só conta no envio do questionário, não aqui.
   document.addEventListener('click', function (e) {
     var a = e.target.closest('[data-wa]');
-    if (a) track('whatsapp:' + a.getAttribute('data-wa') + (a.getAttribute('data-servico') ? ':' + a.getAttribute('data-servico') : ''));
+    if (!a) return;
+    if (window.Quiz && window.Quiz.open(a)) { e.preventDefault(); return; }
+    window.__events.push('whatsapp:' + a.getAttribute('data-wa') + (a.getAttribute('data-servico') ? ':' + a.getAttribute('data-servico') : ''));
   });
 
   if (C.preview) document.documentElement.classList.add('is-preview');
