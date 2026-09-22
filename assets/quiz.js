@@ -47,7 +47,53 @@
     dia: { t: 'Que dia fica melhor?', sub: 'A visita é com agendamento: o clube confirma com você.', o: [
       ['sabado', 'Sábado'], ['domingo', 'Domingo'], ['semana', 'Dia de semana'], ['tantofaz', 'Tanto faz']] },
     periodo: { t: 'Qual período?', o: [['manha', 'Manhã'], ['tarde', 'Tarde'], ['tantofaz', 'Tanto faz']] },
+    // "Que horário?" só existe com a agenda ligada; as opções vêm todas do CONFIG.agenda (ver optsFor)
+    horario: { t: 'Que horário?', o: [] },
   };
+
+  // ---------- agenda de horários (CONFIG.agenda, em app.js) ----------
+  // DESLIGADA (estado publicado): o questionário segue dia → período, exatamente como está no ar.
+  // LIGADA: a pergunta do dia lista só os dias com horário e a do período vira "Que horário?".
+  // Nenhum dia nem horário mora aqui: tudo vem do CONFIG, que o clube ainda não preencheu.
+  var MAX_HORAS = 8;   // opções por tela; a última vaga é sempre do botão de "outros horários"
+  function ag() { return C.agenda || {}; }
+  // o filtro é o do app.js (CONFIG.agendaDias), um só para o site inteiro: a seção "Onde estamos" e o
+  // questionário ligam e desligam juntos, e cada dia já vem com um id que o Willian não digita (d0, d1…)
+  function agDias() { return typeof C.agendaDias === 'function' ? C.agendaDias() : []; }
+  function agOn() { return agDias().length > 0; }
+  function agDia(id) { var l = agDias(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+  function agCurto(d) { return norm(d.curto) || String(d.nome).slice(0, 3); }
+  // cada horário vira "d0|HH:MM": em "Tanto faz" a lista junta os dias, e o dia escolhido vai na mensagem.
+  // Com mais horários do que cabe na tela, as vagas são repartidas em rodízio (um horário de cada dia por
+  // rodada), para nenhum dia sumir da lista; .cortado avisa que sobrou horário fora da tela.
+  function agHoras(s) {
+    var d0 = agDia(s.dia);
+    var dias = s.dia === 'tantofaz' ? agDias() : (d0 ? [d0] : []);
+    var vagas = MAX_HORAS - 1, total = 0, quota = [], usadas = 0, sobrou = true;
+    dias.forEach(function (d) { total += d.horarios.length; quota.push(0); });
+    while (usadas < vagas && sobrou) {
+      sobrou = false;
+      for (var i = 0; i < dias.length && usadas < vagas; i++) {
+        if (quota[i] < dias[i].horarios.length) { quota[i]++; usadas++; sobrou = true; }
+      }
+    }
+    var multi = dias.length > 1, out = [];
+    dias.forEach(function (d, i) {
+      d.horarios.slice(0, quota[i]).forEach(function (h) { out.push([d.id + '|' + h, (multi ? agCurto(d) + ' ' : '') + h]); });
+    });
+    return { opts: out, cortado: usadas < total };
+  }
+  function agEscolha(v) {
+    var i = String(v || '').indexOf('|');
+    if (i < 0) return null;
+    var d = agDia(String(v).slice(0, i));
+    return d ? { dia: d, hora: String(v).slice(i + 1) } : null;
+  }
+  // aviso de antecedência: só sai com um número de horas de verdade (aceita "24" e "24 horas", ignora o resto)
+  function agAntecedencia() {
+    var n = parseInt(ag().antecedenciaHoras, 10);
+    return n > 0 ? 'O clube pede avisar com ' + n + ' h de antecedência.' : '';
+  }
   // fato VERIFICADO #7: arma própria só a partir dos 25 (antes, só arma do clube ou cedida por outro atirador).
   // NÃO prometer que ESTE clube empresta arma (fatos-cac.md "NÃO AFIRMAR" + PENDENCIAS D1). Se o clube confirmar,
   // pode voltar para "Até lá, você treina com arma do clube."
@@ -86,14 +132,24 @@
   // Pedido de visita em uma linha só, para o atendente ler no WhatsApp. Sempre frase inteira: quem lê
   // "tanto faz o dia, manhã" ou "sábado, tanto faz o período" tropeça. As 12 combinações estão no check.mjs.
   //   sábado de manhã · sábado, de manhã ou de tarde · dia de semana, de tarde · qualquer dia, de manhã · tanto faz
+  //   com a agenda ligada e horário escolhido, vira hora certa: "sábado, 09:00" (+ " (a confirmar)" se o CONFIG pedir)
   var DIA_TXT = { sabado: 'sábado', domingo: 'domingo', semana: 'dia de semana', tantofaz: 'qualquer dia' };
   var PER_TXT = { manha: 'de manhã', tarde: 'de tarde', tantofaz: 'de manhã ou de tarde' };
+  function diaTxt(s) {
+    var d = agDia(s.dia);                 // agenda ligada: o nome do dia vem do CONFIG
+    return d ? String(d.nome).toLowerCase() : (DIA_TXT[s.dia] || '');
+  }
   function visita(s) {
+    var e = s.horario && s.horario !== 'outro' ? agEscolha(s.horario) : null;
+    if (e) {
+      var obs = norm(ag().observacao);
+      return String(e.dia.nome).toLowerCase() + ', ' + e.hora + (obs ? ' (' + obs + ')' : '');
+    }
     if (s.dia === 'tantofaz' && s.periodo === 'tantofaz') return 'tanto faz';
-    var d = DIA_TXT[s.dia] || '', p = PER_TXT[s.periodo] || '';
+    var d = diaTxt(s), p = PER_TXT[s.periodo] || '';
     if (!d || !p) return d || p;
     // dia e período certos ("sábado de manhã") dispensam a vírgula; com algo em aberto, ela separa as duas partes
-    var certo = (s.dia === 'sabado' || s.dia === 'domingo') && s.periodo !== 'tantofaz';
+    var certo = s.dia !== 'tantofaz' && s.dia !== 'semana' && s.periodo !== 'tantofaz';
     return d + (certo ? ' ' : ', ') + p;
   }
 
@@ -150,7 +206,10 @@
     if (s.neutro) return s.ehcac === 'nao' ? ['ehcac', 'final'] : ['ehcac'].concat(cac);
     if (s.perfil === 'iniciante') return ['perfil', 'idade', 'interesse', 'govbr', 'quando', 'final'];
     if (s.perfil === 'cac') return ['perfil', 'necessidade'].concat(cac);
-    if (s.perfil === 'conhecer') return ['perfil', 'dia', 'periodo', 'final'];
+    // agenda ligada: o período dá lugar ao horário; "Outro horário" cai de volta no período
+    if (s.perfil === 'conhecer') return agOn()
+      ? ['perfil', 'dia', 'horario'].concat(s.horario === 'outro' ? ['periodo'] : [], ['final'])
+      : ['perfil', 'dia', 'periodo', 'final'];
     return ['perfil', '', '', '', '', 'final'];
   }
   function firstOpen(s) {
@@ -183,6 +242,17 @@
 
   // opções que fazem sentido para esta pessoa (não oferece resposta que contradiz o que ela já disse)
   function optsFor(step, s) {
+    // agenda ligada: dias e horários saem do CONFIG (o "Tanto faz" do dia só faz sentido com 2 dias ou mais)
+    if (step === 'dia' && agOn()) {
+      var dias = agDias().map(function (d) { return [d.id, d.nome]; });
+      if (dias.length > 1) dias.push(['tantofaz', 'Tanto faz']);
+      return dias;
+    }
+    // sobrou horário fora da tela: o último botão avisa que a lista não é toda (senão a pessoa acha que acabou)
+    if (step === 'horario') {
+      var h = agHoras(s);
+      return h.opts.concat([['outro', h.cortado ? 'Ver outros horários' : 'Outro horário']]);
+    }
     var o = Q[step].o;
     if (step === 'filiado' && (s.necessidade === 'socio' || (s.necessidade === 'servico' && s.servicoId === 'troca-clube')))
       o = o.filter(function (x) { return x[0] !== 'daqui'; });           // quer ser sócio / trocar de clube: ainda não é sócio daqui
@@ -251,9 +321,17 @@
   function kicker(step, s) {
     if (step === 'idade' || step === 'interesse' || step === 'govbr' || step === 'quando') return 'Quero ser CAC';
     if (step === 'necessidade') return 'Já sou CAC';
-    if (step === 'dia' || step === 'periodo') return 'Agendar visita';
+    if (step === 'dia' || step === 'periodo' || step === 'horario') return 'Agendar visita';
     if (step === 'ehcac' || step === 'filiado' || step === 'acervo' || step === 'vencimento') return necessidadeLabel(s);
     return '';
+  }
+
+  // linha curta abaixo da pergunta; nas telas do horário e do período é a antecedência que o clube pede
+  // (nunca no lugar da pergunta — e quem toca em "Ver outros horários" cai no período e precisa do aviso igual)
+  function subOf(step) {
+    if (step === 'horario') return agAntecedencia();
+    if (step === 'periodo' && agOn()) return agAntecedencia() || Q.periodo.sub || '';
+    return Q[step].sub || '';
   }
 
   function questionHTML(step) {
@@ -263,13 +341,16 @@
     var aviso = step === 'govbr' && avisoArma(s);
     var k = aviso ? '' : kicker(step, s);
     var title = step === 'vencimento' && isArma(s) ? q.tArma : q.t;
+    var sub = subOf(step);
+    var horas = step === 'horario'; // horários são fichas curtas, duas por linha (8 cabem sem rolar)
     return (aviso ? '<p class="quiz-aviso" role="note">' + ICO('i-target') + '<span>' + esc(AVISO_ARMA) + '</span></p>' : '') +
       (k ? '<p class="quiz-kick">' + esc(k) + '</p>' : '') +
       '<h2 class="quiz-q" id="quiz-q" tabindex="-1">' + esc(title) + '</h2>' +
-      (q.sub ? '<p class="quiz-sub">' + esc(q.sub) + '</p>' : '') +
-      '<div class="quiz-opts" role="group" aria-labelledby="quiz-q">' + opts.map(function (o) {
+      (sub ? '<p class="quiz-sub">' + esc(sub) + '</p>' : '') +
+      '<div class="quiz-opts' + (horas ? ' is-horas' : '') + '" role="group" aria-labelledby="quiz-q">' + opts.map(function (o) {
         var on = s[step] === o[0] || (step === 'necessidade' && s.necessidade === 'servico' && s.servicoOpt === o[0]);
-        return '<button type="button" class="quiz-opt" data-resp="' + step + ':' + esc(o[0]) + '" aria-pressed="' + on + '">' +
+        var wide = horas && o[0] === 'outro'; // "Outro horário" ocupa a linha toda
+        return '<button type="button" class="quiz-opt' + (wide ? ' qo-wide' : '') + '" data-resp="' + step + ':' + esc(o[0]) + '" aria-pressed="' + on + '">' +
           '<span class="qo-ico' + (o[2] ? '' : ' qo-ring') + '">' + (o[2] ? ICO(o[2]) : '') + '</span>' +
           '<span class="qo-t">' + esc(o[1]) + '</span>' + ICO('i-right', 'qo-go') + '</button>';
       }).join('') + '</div>';
@@ -368,8 +449,9 @@
     // "Quero ser sócio" da seção Associação + "Já sou CAC": a necessidade já é ser sócio (não pergunta de novo)
     var skip = q === 'perfil' && v === 'cac' && st.origem === 'associacao' && !s.necessidade;
     if (skip) s.necessidade = 'socio';
-    // resposta antiga que deixou de valer (ex.: voltou e trocou para "Ser sócio"): apaga, a pessoa responde de novo
-    ['filiado', 'acervo'].forEach(function (k) {
+    // resposta antiga que deixou de valer (ex.: voltou e trocou para "Ser sócio", ou trocou o dia da visita):
+    // apaga, a pessoa responde de novo
+    ['filiado', 'acervo', 'horario'].forEach(function (k) {
       if (s[k] && !optsFor(k, s).some(function (o) { return o[0] === s[k]; })) delete s[k];
     });
     if (q === 'idade' && v === 'menos18') { log('quiz:parada:menos18'); return show('stop', 1); }

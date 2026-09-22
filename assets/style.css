@@ -779,6 +779,12 @@ html.quiz-lock,html.quiz-lock body{overflow:hidden}
 .qo-t{flex:1;min-width:0}
 .qo-go{width:18px;height:18px;color:#7a7a7a}
 .quiz-opt:hover .qo-go,.quiz-opt[aria-pressed="true"] .qo-go{color:var(--yellow)}
+/* horários da visita: fichas curtas ("09:00"), duas por linha — 8 opções cabem sem rolar no celular */
+.quiz-opts.is-horas{grid-template-columns:1fr 1fr;gap:8px}
+.quiz-opts.is-horas .quiz-opt{justify-content:center;gap:0;min-height:58px;padding:10px 12px;text-align:center;font-variant-numeric:tabular-nums}
+.quiz-opts.is-horas .qo-ico,.quiz-opts.is-horas .qo-go{display:none}
+.quiz-opts.is-horas .qo-t{flex:0 1 auto}
+.quiz-opts.is-horas .qo-wide{grid-column:1/-1}
 
 /* etapa final: nome + cidade + Enviar */
 .quiz-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
@@ -828,6 +834,8 @@ html.quiz-lock,html.quiz-lock body{overflow:hidden}
   .quiz-sub{font-size:14.5px}
   .quiz-step>.quiz-opts{padding-top:12px;gap:8px}
   .quiz-opt{min-height:56px}
+  .quiz-opts.is-horas{gap:6px}
+  .quiz-opts.is-horas .quiz-opt{min-height:50px}
   .quiz-final .quiz-sub,.quiz-final .quiz-chips,.quiz-final .quiz-note{display:none}
   .quiz-final .quiz-q{font-size:22px}
   .quiz-field{margin-top:10px;gap:4px}
