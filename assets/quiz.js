@@ -7,6 +7,11 @@
 // Caminhos (Willian aprovou as 4 perguntas novas em 19/09):
 //   quero ser CAC: perfil → idade → interesse → gov.br → quando → nome/cidade   (menor de 18 para na idade)
 //   já sou CAC:    perfil → necessidade → filiado → armas → vencimento → nome/cidade
+//   conhecer:      perfil → dia → período → nome/cidade
+//     (Willian, 21/09: o acesso do clube é controlado — quem não é sócio agenda a visita. O site avisa a regra
+//      e já pergunta dia e período, para o contato chegar no WhatsApp com a data pedida; o clube confirma.
+//      O botão "Agendar visita" (data-wa="local") e o "Quero conhecer o clube" (data-wa="clube") começam no dia.
+//      Quem é sócio ou CAC não passa por aqui, a não ser que toque em "Agendar visita".)
 //   card de serviço / "Quero ser sócio": já sabem perfil e necessidade → começam em "filiado"
 //   herança, furto/roubo/perda, registro vencido, conferência, exigência: primeiro "Você já é CAC?"
 //     (herdeiro nem sempre é CAC; conferência e exigência também servem a quem ainda pede o 1º CR)
@@ -37,6 +42,11 @@
     filiado: { t: 'Você é filiado a algum clube hoje?', o: [['outro', 'Sim, em outro clube'], ['daqui', 'Já sou sócio daqui'], ['nao', 'Não / venceu']] },
     acervo: { t: 'Quantas armas você tem registradas?', o: [['0', 'Nenhuma'], ['1-2', '1 ou 2'], ['3+', '3 ou mais']] },
     vencimento: { t: 'Seu CR vence em…', tArma: 'O registro da arma vence em…', o: [['vencido', 'Já venceu'], ['ate3', 'Até 3 meses'], ['mais3', 'Mais de 3 meses'], ['naosei', 'Não sei']] },
+    // acesso controlado: a visita é com agendamento. Não dizer dia nem horário do clube (ainda é pendência) —
+    // aqui quem escolhe é a pessoa, e o clube confirma pelo WhatsApp.
+    dia: { t: 'Que dia fica melhor?', sub: 'A visita é com agendamento: o clube confirma com você.', o: [
+      ['sabado', 'Sábado'], ['domingo', 'Domingo'], ['semana', 'Dia de semana'], ['tantofaz', 'Tanto faz']] },
+    periodo: { t: 'Qual período?', o: [['manha', 'Manhã'], ['tarde', 'Tarde'], ['tantofaz', 'Tanto faz']] },
   };
   // fato VERIFICADO #7: arma própria só a partir dos 25 (antes, só arma do clube ou cedida por outro atirador).
   // NÃO prometer que ESTE clube empresta arma (fatos-cac.md "NÃO AFIRMAR" + PENDENCIAS D1). Se o clube confirmar,
@@ -73,6 +83,20 @@
     'registro-vencido': 'Preciso de ajuda com um registro de arma vencido.',
     ocorrencia: 'Preciso de orientação sobre furto, roubo ou perda de arma.',
   };
+  // Pedido de visita em uma linha só, para o atendente ler no WhatsApp. Sempre frase inteira: quem lê
+  // "tanto faz o dia, manhã" ou "sábado, tanto faz o período" tropeça. As 12 combinações estão no check.mjs.
+  //   sábado de manhã · sábado, de manhã ou de tarde · dia de semana, de tarde · qualquer dia, de manhã · tanto faz
+  var DIA_TXT = { sabado: 'sábado', domingo: 'domingo', semana: 'dia de semana', tantofaz: 'qualquer dia' };
+  var PER_TXT = { manha: 'de manhã', tarde: 'de tarde', tantofaz: 'de manhã ou de tarde' };
+  function visita(s) {
+    if (s.dia === 'tantofaz' && s.periodo === 'tantofaz') return 'tanto faz';
+    var d = DIA_TXT[s.dia] || '', p = PER_TXT[s.periodo] || '';
+    if (!d || !p) return d || p;
+    // dia e período certos ("sábado de manhã") dispensam a vírgula; com algo em aberto, ela separa as duas partes
+    var certo = (s.dia === 'sabado' || s.dia === 'domingo') && s.periodo !== 'tantofaz';
+    return d + (certo ? ' ' : ', ') + p;
+  }
+
   var SVC_OPT = { 'renovacao-cr': 'renovar-cr', 'renovacao-craf': 'renovar-craf' }; // card que já é uma opção de "Do que você precisa?"
   var SVC_NEUTRO = { heranca: 1, ocorrencia: 1, 'registro-vencido': 1, conferencia: 1, exigencia: 1 }; // quem toca pode não ser CAC → pergunta antes
   var SVC_DIRETO = { ocorrencia: 1 };                                                 // urgente: depois de "é CAC?" vai direto para nome/cidade
@@ -126,7 +150,7 @@
     if (s.neutro) return s.ehcac === 'nao' ? ['ehcac', 'final'] : ['ehcac'].concat(cac);
     if (s.perfil === 'iniciante') return ['perfil', 'idade', 'interesse', 'govbr', 'quando', 'final'];
     if (s.perfil === 'cac') return ['perfil', 'necessidade'].concat(cac);
-    if (s.perfil === 'conhecer') return ['perfil', 'final'];
+    if (s.perfil === 'conhecer') return ['perfil', 'dia', 'periodo', 'final'];
     return ['perfil', '', '', '', '', 'final'];
   }
   function firstOpen(s) {
@@ -199,6 +223,8 @@
       L.push('Não sou CAC.');
     } else {
       L.push(st.origem === 'local' || st.origem === 'clube' ? 'Quero conhecer o clube e agendar uma visita.' : 'Quero conhecer o clube.');
+      var v = visita(s);
+      if (v) L.push('Visita: ' + v + '.');
     }
     if (st.origem === 'faq' || st.origem === 'atalhos') L.push('Tenho uma dúvida.');
     return L.join('\n');
@@ -225,6 +251,7 @@
   function kicker(step, s) {
     if (step === 'idade' || step === 'interesse' || step === 'govbr' || step === 'quando') return 'Quero ser CAC';
     if (step === 'necessidade') return 'Já sou CAC';
+    if (step === 'dia' || step === 'periodo') return 'Agendar visita';
     if (step === 'ehcac' || step === 'filiado' || step === 'acervo' || step === 'vencimento') return necessidadeLabel(s);
     return '';
   }
@@ -254,6 +281,7 @@
     if (s.perfil === 'cac') c.push(necessidadeLabel(s));
     if (s.perfil === 'cac' && !direto(s)) c.push(CHIP.filiado[s.filiado], CHIP.acervo[s.acervo], semVenc(s) ? '' : (isArma(s) ? CHIP.vencArma : CHIP.vencimento)[s.vencimento]);
     if (s.perfil === 'naocac') c.unshift(s.servico);
+    if (s.perfil === 'conhecer' && visita(s)) c.push('Visita: ' + visita(s));
     return c.filter(Boolean).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
   }
 
@@ -306,13 +334,13 @@
     if (step === 'stop') { prog.innerHTML = ''; pos.textContent = ''; }
     else {
       // barra de progresso: numa pergunta, conta o caminho como se ela ainda não tivesse resposta (não muda ao voltar);
-      // no fim, fica toda cheia e nunca encolhe (ex.: "Só quero conhecer" encurta o caminho)
+      // nunca encolhe (ex.: "Só quero conhecer" encurta o caminho) e, no fim, fica toda cheia
       var n, on;
       if (step === 'final') { n = Math.max(st.segs || 0, p.length); on = n; }
       else {
         var probe = {}; for (var k in st.s) if (k !== step) probe[k] = st.s[k];
         var pp = path(probe);
-        n = pp.length; on = pp.indexOf(step) + 1;
+        n = Math.max(st.segs || 0, pp.length); on = pp.indexOf(step) + 1;
       }
       st.segs = n;
       prog.innerHTML = Array.apply(null, Array(n)).map(function (_, j) { return '<span' + (j < on ? ' class="on"' : '') + '></span>'; }).join('');
